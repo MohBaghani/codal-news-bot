@@ -1,0 +1,4 @@
+requests>=2.31,<3
+Pillow>=10.3,<11
+arabic-reshaper>=3.0,<4
+python-bidi>=0.4.2,<0.7

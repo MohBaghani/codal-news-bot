@@ -1,0 +1,61 @@
+name: Codal to Telegram Bot
+
+on:
+  schedule:
+    # هر ۱۰ دقیقه. آفست‌های فرد (۳،۱۳،۲۳...) برای فرار از شلوغیِ لحظه‌ی صفر هر ساعت.
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+    inputs:
+      seed_only:
+        description: "فقط وضعیت اولیه را ثبت کن، چیزی نفرست (برای اولین اجرا true بگذار)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: codal-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          CODAL_API_BASE: ${{ vars.CODAL_API_BASE }}
+          MAX_ITEMS_PER_RUN: ${{ vars.MAX_ITEMS_PER_RUN }}
+          SEND_IMAGE: ${{ vars.SEND_IMAGE }}
+          SYMBOLS_FILTER: ${{ vars.SYMBOLS_FILTER }}
+          SEED_ONLY: ${{ github.event.inputs.seed_only || 'false' }}
+        run: python main.py
+
+      - name: Commit updated state (dedup list)
+        run: |
+          if [ -n "$(git status --porcelain state/seen.json)" ]; then
+            git config user.name "codal-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add state/seen.json
+            git commit -m "chore: update seen state [skip ci]"
+            git push
+          else
+            echo "No state change to commit."
+          fi
