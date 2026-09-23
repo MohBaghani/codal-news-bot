@@ -44,33 +44,56 @@ except ImportError:
 # --------------------------------------------------------------------------
 # تنظیمات (از Environment Variables خوانده می‌شود؛ رجوع کنید به .env.example)
 # --------------------------------------------------------------------------
+#
+# توجه: در GitHub Actions، وقتی یک ${{ vars.X }} تعریف‌نشده به env پاس داده
+# می‌شود، مقدارش رشته‌ی خالی "" می‌شود، نه این‌که اصلاً وجود نداشته باشد.
+# پس os.environ.get(name, default) به‌تنهایی کافی نیست — باید رشته‌ی خالی را
+# هم «تنظیم‌نشده» حساب کنیم. تابع‌های زیر همین کار را می‌کنند.
 
-CODAL_API_BASE = os.environ.get(
-    "CODAL_API_BASE", "https://search.codal.ir/api/search/v2/q"
-)
+
+def env_str(name, default):
+    val = os.environ.get(name)
+    return val if val not in (None, "") else default
+
+
+def env_int(name, default):
+    val = os.environ.get(name)
+    if val in (None, ""):
+        return default
+    return int(val)
+
+
+def env_bool(name, default):
+    val = os.environ.get(name)
+    if val in (None, ""):
+        return default
+    return val.strip().lower() == "true"
+
+
+CODAL_API_BASE = env_str("CODAL_API_BASE", "https://search.codal.ir/api/search/v2/q")
 # اگر روزی search.codal.ir از داخل GitHub Actions در دسترس نبود، بدون تغییر کد
 # می‌توانید این متغیر را به آدرس یک پراکسی/آینه دیگر تغییر دهید (پروکسی باید
 # همان ساختار JSON کدال را برگرداند).
 
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_BOT_TOKEN = env_str("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = env_str("TELEGRAM_CHAT_ID", "")
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_API_KEY = env_str("GEMINI_API_KEY", "")
+GEMINI_MODEL = env_str("GEMINI_MODEL", "gemini-3.1-flash-lite")
 # نام مدل‌های Gemini مدام تغییر می‌کند؛ اگر خطای «model not found» گرفتید،
 # از https://ai.google.dev/gemini-api/docs/models نام مدل رایگانِ فعلی را
 # بگذارید در Variable مربوطه در گیت‌هاب، بدون نیاز به دست‌زدن به کد.
 
-MAX_ITEMS_PER_RUN = int(os.environ.get("MAX_ITEMS_PER_RUN", "25"))
-SEND_IMAGE = os.environ.get("SEND_IMAGE", "true").lower() == "true"
+MAX_ITEMS_PER_RUN = env_int("MAX_ITEMS_PER_RUN", 25)
+SEND_IMAGE = env_bool("SEND_IMAGE", True)
 SYMBOLS_FILTER = [
-    s.strip() for s in os.environ.get("SYMBOLS_FILTER", "").split(",") if s.strip()
+    s.strip() for s in env_str("SYMBOLS_FILTER", "").split(",") if s.strip()
 ]  # خالی = بدون فیلتر (همه‌ی نمادها)، طبق خواسته‌ی اولیه
 
-STATE_FILE = Path(os.environ.get("STATE_FILE", "state/seen.json"))
+STATE_FILE = Path(env_str("STATE_FILE", "state/seen.json"))
 MAX_STATE_ITEMS = 4000  # فایل وضعیت را کوچک نگه می‌داریم
 
-SEED_ONLY = os.environ.get("SEED_ONLY", "false").lower() == "true"
+SEED_ONLY = env_bool("SEED_ONLY", False)
 # در اولین اجرا True کنید تا بک‌لاگ قدیمی فقط علامت‌گذاری شود و اسپم نشود.
 
 FONT_DIR = Path(__file__).parent / "fonts"
